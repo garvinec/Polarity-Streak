@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
+import darkMode from "./dark-theme.png";
 
 function App() {
   useEffect(() => {
@@ -49,79 +50,141 @@ function App() {
     ["z", 25],
   ]);
 
+  // make sure no matter where the user clicks, it focuses on the input box (which is hidden from them)
+  const inputRef = useRef(null);
+
   useEffect(() => {
-    document.querySelector(".textbox").focus();
+    document.body.addEventListener("click", () => {
+      inputRef.current.focus();
+    });
   }, []);
 
   // Simultaneously shows what the user is typing in the text box
   const [inputValue, setInputValue] = useState("");
+  const [frontText, setFrontText] = useState("");
+  const [highlightedText, setHighlightedText] = useState("");
+  const [backText, setBackText] = useState("");
   const [streakCount, setStreakCount] = useState(0);
+  const [highlightedLength, setHighlightedLength] = useState(0);
+  const [firstLetter, setFirstLetter] = useState(0);
+
+  // highlight current streak
+  useEffect(() => {
+    setFrontText(() => inputValue.substring(0, firstLetter));
+    setHighlightedText(() =>
+      inputValue.substring(firstLetter, firstLetter + highlightedLength)
+    );
+    setBackText(() => inputValue.substring(firstLetter + highlightedLength));
+  }, [inputValue, firstLetter, highlightedLength]);
+
+  function inputChangeHandler(s) {
+    CountStreak(s.toLowerCase());
+    setInputValue(s);
+  }
 
   function isAlpha(str) {
     return str.length === 1 && str.match(/[a-z]/i);
   }
 
   // function that counts the streak
-  function countStreak(s) {
+  function CountStreak(s) {
     let largestStreak = 0;
     let currentStreakLength = 0;
+    let longestHighlighted = 0;
+    let currentHighlightedLength = 0;
     let prevLetter = "Even";
     let firstLetter = 0;
-    let lastLetter = 0;
-    for (const letter of s.split(" ").join("")) {
-      if (isAlpha(letter)) {
-        // if it's an even alphabet and the previous letter was an even letter, add the letter to temp
-        if (alpha_num.get(letter) % 2 === 0 && prevLetter === "Even") {
+    let temp = 0;
+    for (let i = 0; i < s.length; i++) {
+      if (isAlpha(s[i])) {
+        // if it's an even alphabet and the previous letter was an even letter
+        if (alpha_num.get(s[i]) % 2 === 0 && prevLetter === "Even") {
           currentStreakLength += 1;
+          currentHighlightedLength += 1;
         }
-        // if it's an even alphabet and the previous letter was an odd letter, check if temp.length is bigger than the current largest odd streak. if so, replace it, and then clear temp.
-        else if (alpha_num.get(letter) % 2 === 0 && prevLetter === "Odd") {
+        // if it's an even alphabet and the previous letter was an odd letter
+        else if (alpha_num.get(s[i]) % 2 === 0 && prevLetter === "Odd") {
           currentStreakLength = 1;
+          currentHighlightedLength = 1;
           prevLetter = "Even";
+          temp = i;
         }
         // if it's an odd alphabet and the previous letter was an odd letter
-        else if (alpha_num.get(letter) % 2 !== 0 && prevLetter === "Odd") {
+        else if (alpha_num.get(s[i]) % 2 !== 0 && prevLetter === "Odd") {
           currentStreakLength += 1;
+          currentHighlightedLength += 1;
         }
-        // if it's an odd alphabet and the previous letter was an even letter, check if temp.length is bigger than the current largest even streak. if so, replace it, and then clear temp.
-        else if (alpha_num.get(letter) % 2 !== 0 && prevLetter === "Even") {
+        // if it's an odd alphabet and the previous letter was an even letter
+        else if (alpha_num.get(s[i]) % 2 !== 0 && prevLetter === "Even") {
           currentStreakLength = 1;
+          currentHighlightedLength = 1;
           prevLetter = "Odd";
+          temp = i;
         }
         // should not reach here
         else {
           console.log("It shouldn't get here");
         }
-        largestStreak = Math.max(currentStreakLength, largestStreak);
+        // update current streak indices if needed
+        if (currentStreakLength > largestStreak) {
+          largestStreak = currentStreakLength;
+          longestHighlighted = currentHighlightedLength;
+          firstLetter = temp;
+        }
+        // largestStreak = Math.max(currentStreakLength, largestStreak);
+      } else if (s[i] === " ") {
+        currentHighlightedLength += 1;
       } else {
         currentStreakLength = 0;
+        currentHighlightedLength = 0;
+        temp = i + 1;
       }
     }
-
     setStreakCount(largestStreak);
+    setFirstLetter(firstLetter);
+    setHighlightedLength(longestHighlighted);
   }
 
-  // function that highlights the letters that are part of the streak
+  // dark mode function
+  function toggleDark() {
+    document.body.classList.toggle("dark_mode");
+  }
 
   return (
-    <div className="main">
-      <div className="top">
-        <h1>Polarity Streak!</h1>
-        <div className="instruction">
-          Try to make the longest "even" or "odd" streak of letters! Evenness
-          for the letters alternates with a being even, b is odd, c is even, d
-          is odd...
-        </div>
-      </div>
-      <div className="bottom">
-        <input
-          className="textbox"
-          type="text"
-          // value={inputValue}
-          onChange={(e) => countStreak(e.target.value)}
-          autoFocus
+    <div>
+      <div className="topBar">
+        <img
+          id="toggle"
+          src={darkMode}
+          alt="lightdarkmode-toggle"
+          onClick={toggleDark}
         />
-        <div className="streakCounter">{streakCount}</div>
+      </div>
+      <div className="main">
+        <div className="top">
+          <h1>Polarity Streak!</h1>
+          <div className="instruction">
+            Try to make the longest "even" or "odd" streak of letters! Evenness
+            for the letters alternates with a being even, b is odd, c is even, d
+            is odd...
+          </div>
+        </div>
+        <div className="bottom">
+          <input
+            type="text"
+            ref={inputRef}
+            style={{ opacity: 0 }} // hides input from user
+            onChange={(e) => inputChangeHandler(e.target.value)}
+            autoFocus
+          />
+          <div className="textbox">
+            <div className="textFront">{frontText}</div>
+            <div className="highlighted">{highlightedText}</div>
+            <div className="textBack">{backText}</div>
+            <div className="caret">|</div>
+          </div>
+          <div className="streakCounter">{streakCount}</div>
+        </div>
       </div>
     </div>
   );
